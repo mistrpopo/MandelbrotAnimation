@@ -42,12 +42,15 @@ mod mandelbrot_shader {
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
 layout(set = 0, binding = 0, rgba8) uniform writeonly image2D img;
+layout(set = 0, binding = 1) buffer Data {
+    float init;
+} buf;
 
 void main() {
     vec2 norm_coordinates = (gl_GlobalInvocationID.xy + vec2(0.5)) / vec2(imageSize(img));
     vec2 c = (norm_coordinates - vec2(0.5)) * 2.0 - vec2(1.0, 0.0);
 
-    vec2 z = vec2(0.0, 0.0);
+    vec2 z = vec2(buf.init, buf.init);
     float i;
     for (i = 0.0; i < 1.0; i += 0.005) {
         z = vec2(
@@ -64,6 +67,7 @@ void main() {
     imageStore(img, ivec2(gl_GlobalInvocationID.xy), to_write);
 }//"
 	]
+	#[allow(dead_code)]
 	struct Dummy;
 }
 
@@ -80,11 +84,9 @@ fn create_vulkan() -> (Arc<Device>, Arc<Queue>) {
 	for family in physical.queue_families() {
 		println!("Found a queue family with {:?} queue(s)", family.queues_count());
 	}
-
 	let queue_family = physical.queue_families()
 		.find(|&q| q.supports_graphics())
 		.expect("couldn't find a graphical queue family");
-
 	let (device, mut queues) = {
 	Device::new(physical, &Features::none(), &DeviceExtensions::none(),
 		[(queue_family, 0.5)].iter().cloned()).expect("failed to create device")
@@ -96,17 +98,21 @@ fn create_vulkan() -> (Arc<Device>, Arc<Queue>) {
 fn create_image(device: Arc<Device>,queue: Arc<Queue>) -> Arc<StorageImage<Format>> {
 	let image = StorageImage::new(device.clone(), Dimensions::Dim2d { width: 1024, height: 1024 }, 
 		Format::R8G8B8A8Unorm, Some(queue.family())).unwrap();
-
 	image
 }
 
 fn generate_mandelbrot(image: Arc<StorageImage<Format>>, device: Arc<Device>, queue: Arc<Queue>) {
 	let shader = mandelbrot_shader::Shader::load(device.clone()).expect("failed to create shader module");
 	let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &()).expect("failed to create compute pipeline"));
+
+	let init: f32 = 0.5;
+	let init_buf = CpuAccessibleBuffer::from_data(device.clone(), BufferUsage::all(), init).expect("failed to create buffer");
+
+
 	let set = Arc::new(PersistentDescriptorSet::start(compute_pipeline.clone(), 0)
 	.add_image(image.clone()).unwrap()
+	.add_buffer(init_buf.clone()).unwrap()
 	.build().unwrap());
-
 
 	let buf = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(),
 	(0 .. 1024 * 1024 * 4).map(|_| 0u8))
@@ -123,7 +129,7 @@ fn generate_mandelbrot(image: Arc<StorageImage<Format>>, device: Arc<Device>, qu
 	let buffer_content = buf.read().unwrap();
 	println!("Store buffer into image");
 	let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
-	let path = "image_0.005_0.0_0.0.png";
+	let path = "aaaaa.png";
 	println!("Saving image to {:?}", path);
 	image.save(path).unwrap();
 	println!("Image saved to {:?}", path);
