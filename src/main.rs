@@ -74,8 +74,10 @@ void main() {
 fn main() {
 	let (device, queue) = create_vulkan();
 	let image = create_image(device.clone(), queue.clone());
-	generate_mandelbrot(image.clone(), device.clone(), queue.clone());
-
+	for wtf_rust_ranges in 0..500 {
+		let init: f32 = (wtf_rust_ranges as f32) / 500.0;
+		generate_mandelbrot(init, image.clone(), device.clone(), queue.clone());
+	}
 }
 
 fn create_vulkan() -> (Arc<Device>, Arc<Queue>) {
@@ -101,11 +103,10 @@ fn create_image(device: Arc<Device>,queue: Arc<Queue>) -> Arc<StorageImage<Forma
 	image
 }
 
-fn generate_mandelbrot(image: Arc<StorageImage<Format>>, device: Arc<Device>, queue: Arc<Queue>) {
+fn generate_mandelbrot(init: f32, image: Arc<StorageImage<Format>>, device: Arc<Device>, queue: Arc<Queue>) {
 	let shader = mandelbrot_shader::Shader::load(device.clone()).expect("failed to create shader module");
 	let compute_pipeline = Arc::new(ComputePipeline::new(device.clone(), &shader.main_entry_point(), &()).expect("failed to create compute pipeline"));
 
-	let init: f32 = 0.5;
 	let init_buf = CpuAccessibleBuffer::from_data(device.clone(), BufferUsage::all(), init).expect("failed to create buffer");
 
 
@@ -129,8 +130,8 @@ fn generate_mandelbrot(image: Arc<StorageImage<Format>>, device: Arc<Device>, qu
 	let buffer_content = buf.read().unwrap();
 	println!("Store buffer into image");
 	let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
-	let path = "aaaaa.png";
+	let path = format!("image_{:.3}.png", init);
 	println!("Saving image to {:?}", path);
-	image.save(path).unwrap();
+	image.save(path.clone()).unwrap();
 	println!("Image saved to {:?}", path);
 }
