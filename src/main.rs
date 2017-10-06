@@ -74,8 +74,8 @@ void main() {
 fn main() {
 	let (device, queue) = create_vulkan();
 	let image = create_image(device.clone(), queue.clone());
-	for wtf_rust_ranges in 0..500 {
-		let init: f32 = (wtf_rust_ranges as f32) / 500.0;
+	for wtf_rust_ranges in 0..1000 {
+		let init: f32 = (wtf_rust_ranges as f32) / 1000.0;
 		generate_mandelbrot(init, image.clone(), device.clone(), queue.clone());
 	}
 }
@@ -98,7 +98,7 @@ fn create_vulkan() -> (Arc<Device>, Arc<Queue>) {
 }
 
 fn create_image(device: Arc<Device>,queue: Arc<Queue>) -> Arc<StorageImage<Format>> {
-	let image = StorageImage::new(device.clone(), Dimensions::Dim2d { width: 1024, height: 1024 }, 
+	let image = StorageImage::new(device.clone(), Dimensions::Dim2d { width: 2048, height: 2048 }, 
 		Format::R8G8B8A8Unorm, Some(queue.family())).unwrap();
 	image
 }
@@ -116,11 +116,11 @@ fn generate_mandelbrot(init: f32, image: Arc<StorageImage<Format>>, device: Arc<
 	.build().unwrap());
 
 	let buf = CpuAccessibleBuffer::from_iter(device.clone(), BufferUsage::all(),
-	(0 .. 1024 * 1024 * 4).map(|_| 0u8))
+	(0 .. 2048 * 2048 * 4).map(|_| 0u8))
 	.expect("failed to create buffer");
 
 	let command_buffer = AutoCommandBufferBuilder::new(device.clone(), queue.family()).unwrap()
-	.dispatch([1024 / 8, 1024 / 8, 1], compute_pipeline.clone(), set.clone(), ()).unwrap()
+	.dispatch([2048 / 8, 2048 / 8, 1], compute_pipeline.clone(), set.clone(), ()).unwrap()
 	.copy_image_to_buffer(image.clone(), buf.clone()).unwrap()
 	.build().unwrap();
 
@@ -129,7 +129,7 @@ fn generate_mandelbrot(init: f32, image: Arc<StorageImage<Format>>, device: Arc<
 
 	let buffer_content = buf.read().unwrap();
 	println!("Store buffer into image");
-	let image = ImageBuffer::<Rgba<u8>, _>::from_raw(1024, 1024, &buffer_content[..]).unwrap();
+	let image = ImageBuffer::<Rgba<u8>, _>::from_raw(2048, 2048, &buffer_content[..]).unwrap();
 	let path = format!("image_{:.3}.png", init);
 	println!("Saving image to {:?}", path);
 	image.save(path.clone()).unwrap();
